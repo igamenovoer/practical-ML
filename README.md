@@ -7,6 +7,6 @@ contents for the Coursera course Practical Machine Learning
 
 the course report
 
-** report.Rmd **
+** index.Rmd **
 
 R markdown of the course report
