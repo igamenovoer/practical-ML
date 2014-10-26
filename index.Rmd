@@ -1,5 +1,6 @@
 ---
 title: "Course Project Report"
+author: Huang Zhe
 output: html_document
 ---
 
