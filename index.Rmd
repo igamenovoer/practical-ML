@@ -7,10 +7,11 @@ I build and test the classification model in several steps.
 
 1. **Data Cleanup**
 
-In the training data, I remove all the columns that contain missing values, since they miss such a large proportion of values that the remaining values are hardly usable. I also remove columns about timing, because the 20 testing cases in "pml-testing.csv" do not have timing information. Columns related to user identity are also removed.
+In the training data, I remove all the columns that contain missing values, since they miss such a large proportion of values that the remaining values are hardly useful. I also remove columns about timing, because the 20 testing cases in "pml-testing.csv" do not have timing information. Columns related to user identity are also removed.
 
 ```{r,message=FALSE}
 library(caret)
+library(MASS)
 set.seed(12345)
 dataset = read.csv("pml-training.csv",na.strings=c(" ","#DIV/0!","NA"));
 
@@ -32,7 +33,7 @@ print(names(dataset))
 
 2. **Split Dataset** 
 
-The dataset is splited into training data and testing data, where the former takes 70%. The testing data is used in the end to estimate
+The dataset is splited into training data and testing data, where the former takes 70%. The testing data is used in the end to estimate the out-of-sample error.
 ```{r}
 idxtrain = createDataPartition(dataset$classe,p = 0.7,list = FALSE);
 df_train = dataset[idxtrain,]
@@ -41,7 +42,29 @@ df_test = dataset[-idxtrain,]
 
 3. **Training** 
 
-I pick the QDA model for prediction function, because dumbbell lifting are composed of repeated regular actions, and therefore the data samples are expected to be distributed around some center in feature space. The QDA model assumes the data points of different classes being distributed normally with unknown means and variances, which suit my expectation. I use 10-fold cross-validation for sampling to avoid overfitting.
+I pick the QDA model for prediction function, because dumbbell lifting are composed of repeated regular actions, and therefore the data samples are expected to be distributed around some center in feature space. For example, here are the histograms of sensor "accel_ forearm_x" of 5 different classes, along with a fitted normal distribution. We can see that aside from class A, the distribution of the sensor data follows normal distribution roughly.
+
+```{r, echo=FALSE}
+allclass=c("A","B","C","D","E");
+dfplot = dataset;
+sensorname = "accel_forearm_x"
+# par(mfrow=c(1,5),mar=c(25,2,2,0));
+par(mfrow=c(2,3));
+for (cls in allclass){
+  tmpdata = dfplot[dfplot$classe==cls,sensorname]
+  hist(tmpdata,xlab=sensorname,main=paste("class",cls))
+  
+  xmin = min(tmpdata);
+  xmax = max(tmpdata);
+  dd = fitdistr(tmpdata,'normal')
+  xs = seq(from=xmin,to=xmax,length=100);
+  ys = dnorm(xs,mean = dd$estimate[["mean"]],sd=dd$estimate[["sd"]])
+  par(new=T)
+  plot(xs,ys,type='l',axes=FALSE,ann=FALSE,col="red",lwd=2)
+}
+```
+
+The QDA model assumes the data points of different classes being distributed normally with unknown means and variances, which suit my expectation. I use 10-fold cross-validation for sampling to avoid overfitting.
 
 ```{r,message=FALSE}
 # train QDA model
@@ -77,8 +100,6 @@ testset = read.csv("pml-testing.csv",na.strings=c(" ","#DIV/0!","NA"));
 predvals = predict(fitmodel,testset);
 predvals
 ```
-
-
 
 
 
