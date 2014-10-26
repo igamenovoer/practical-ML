@@ -1,0 +1,94 @@
+---
+title: "Course Project Report"
+output: html_document
+---
+
+I build and test the classification model in several steps.
+
+1. **Data Cleanup**
+
+In the training data, I remove all the columns that contain missing values, since they miss such a large proportion of values that the remaining values are hardly usable. I also remove columns about timing, because the 20 testing cases in "pml-testing.csv" do not have timing information. Columns related to user identity are also removed.
+
+```{r,message=FALSE}
+library(caret)
+set.seed(12345)
+dataset = read.csv("pml-training.csv",na.strings=c(" ","#DIV/0!","NA"));
+
+# remove the columns that have missing data
+maskremove = apply(dataset,2,function(x)any(is.na(x)));
+maskremove = as.vector(maskremove);
+
+# remove the columns related to time and user identity
+maskremove = maskremove | is.element(names(dataset),c("X","user_name","raw_timestamp_part_1","raw_timestamp_part_2","cvtd_timestamp","new_window","num_window"));
+
+# subset the data
+dataset = dataset[,!maskremove];
+```
+
+This leaves me the following columns
+```{r,echo=FALSE}
+print(names(dataset))
+```
+
+2. **Split Dataset** 
+
+The dataset is splited into training data and testing data, where the former takes 70%. The testing data is used in the end to estimate
+```{r}
+idxtrain = createDataPartition(dataset$classe,p = 0.7,list = FALSE);
+df_train = dataset[idxtrain,]
+df_test = dataset[-idxtrain,]
+```
+
+3. **Training** 
+
+I pick the QDA model for prediction function, because dumbbell lifting are composed of repeated regular actions, and therefore the data samples are expected to be distributed around some center in feature space. The QDA model assumes the data points of different classes being distributed normally with unknown means and variances, which suit my expectation. I use 10-fold cross-validation for sampling to avoid overfitting.
+
+```{r,message=FALSE}
+# train QDA model
+tc = trainControl(method = "repeatedcv", number=10, repeats=5)
+fitmodel = train(classe ~ ., data = df_train, method='qda', 
+                 verbose=TRUE,preProcess=c("center","scale"),
+                 trControl = tc);
+```
+
+Summary of the trained model:
+```{r, echo=FALSE}
+fitmodel
+```
+
+4. **Estimate Out-of-Sample Error**
+
+Now apply the trained model to the test set and see what the error is.
+```{r}
+predvals = predict(fitmodel, df_test)
+truevals = df_test$classe
+xtab = table(predvals,truevals);
+cmat = confusionMatrix(xtab);
+cmat
+cat("out-of-sample error rate is ",1-cmat$overall[[1]]);
+```
+
+5. **Predict with New Data**
+
+We can now predict the cases in "pml-testing.csv" now, as follows
+```{r}
+# predict data in pml-testing.csv
+testset = read.csv("pml-testing.csv",na.strings=c(" ","#DIV/0!","NA"));
+predvals = predict(fitmodel,testset);
+predvals
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
